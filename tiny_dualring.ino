@@ -1,18 +1,30 @@
 /*===========================================================
- * Dual Ring LED Client 
+ * Dual Ring LED 
  * 
- * Excercise 1:  your first fill!
- * Tweaked for Tiny
+ * Porting to tiny!!!
  */
 
 #include <Adafruit_NeoPixel.h>
 
 // Which pin to use for DualRingLED control
 #define LED_PIN    4
-#define NUMPIXELS 40
+#define NUMPIXELS  40
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, LED_PIN, NEO_GRB+NEO_KHZ800);
 
+#define COLOR_RED     0xFF0000
+#define COLOR_GREEN   0x00FF00
+#define COLOR_BLUE    0x0000FF
+#define COLOR_MAGENTA 0xFF00FF
+#define COLOR_YELLOW  0xFFFF00
+#define COLOR_CYAN    0x00FFFF
+#define COLOR_BLACK   0
+#define COLOR_WHITE   0xFFFFFF
+
+/*================================================================================
+ * LIBRARY FUNCITONS
+ *===============================================================================*/
+ 
 /*===============================================================================
  * Function:  rotateDownHelper
  *
@@ -76,32 +88,207 @@ void rotateUpHelper( Adafruit_NeoPixel *strip, int start_led, int num )
     
 }  // end of rotate_down_helper
 
+void fillGradient(Adafruit_NeoPixel *strip, int start_index, uint32_t start_color, int end_index, uint32_t end_color)
+{
+  int i;
+  
+  uint32_t start_red;
+  uint32_t end_red;
+  uint32_t start_green;
+  uint32_t end_green;
+  uint32_t start_blue;
+  uint32_t end_blue;
+
+  int red_step;
+  int green_step;
+  int blue_step;
+
+  int num_steps = end_index - start_index;
+
+  start_red = start_color & 0xFF0000;
+  start_red = start_red >> 16;
+  start_green = start_color & 0x00FF00;
+  start_green = start_green >> 8;
+  start_blue = start_color & 0x0000FF;
+
+  end_red = end_color & 0xFF0000;
+  end_red = end_red >> 16;
+  end_green = end_color & 0x00FF00;
+  end_green = end_green >> 8;
+  end_blue = end_color & 0x0000FF;
+
+  red_step = end_red - start_red;
+  green_step = end_green - start_green;
+  blue_step = end_blue - start_blue;
+
+  #if 0
+  Serial.print("Num steps: ");
+  Serial.println(num_steps);
+  Serial.print("r/g/b step: ");
+  Serial.print(red_step);
+  Serial.print(" ");
+  Serial.print(green_step);
+  Serial.print(" ");
+  Serial.println(blue_step);
+  #endif
+
+  
+  for (i = 0; i <= num_steps; i++)
+  {
+    #if 0
+    Serial.print("i=");
+    Serial.print(i);
+    Serial.print(", r:");
+    Serial.print(start_red+ ((i*red_step)/num_steps));
+    Serial.print(" b:");
+    Serial.println(start_blue + ((i*blue_step)/num_steps));
+    #endif
+    
+    strip->setPixelColor(start_index + i, 
+                         start_red + ((i*red_step)/num_steps),
+                         start_green + ((i*green_step)/num_steps),
+                         start_blue + ((i*blue_step)/num_steps));
+  }
+
+}
+
+/*================================================================================
+ * fillAll
+ */
+void fillAll( uint32_t color )
+{
+  int i;
+
+  for (i=0; i<NUMPIXELS; i++)
+  {
+    pixels.setPixelColor(i, color);
+  }
+}
+
+/*================================================================================
+ * fillInner
+ */
+void fillInner( uint32_t color )
+{
+  int i;
+
+  for (i=0; i<16; i++)
+  {
+    pixels.setPixelColor(i, color);
+  }
+}
+
+/*================================================================================
+ * fillOuter
+ */
+void fillOuter( uint32_t color )
+{
+  int i;
+
+  for (i=16; i<40; i++)
+  {
+    pixels.setPixelColor(i, color);
+  }
+}
+
+/*================================================================================
+ * rotateInnerClockwise
+ */
+ void rotateInnerClockwise( void )
+ {
+   rotateDownHelper(&pixels, 0, 16);
+ }
+
+/*================================================================================
+ * rotateInnerCounterClockwise
+ */
+ void rotateInnerCounterClockwise( void )
+ {
+   rotateUpHelper(&pixels, 0, 16);
+ }
+
+ 
+/*================================================================================
+ * rotateOuterClockwise
+ */
+ void rotateOuterClockwise( void )
+ {
+   rotateUpHelper(&pixels, 16, 24);
+ }
+
+/*================================================================================
+ * rotateOuterCounterClockwise
+ */
+void rotateOuterCounterClockwise( void )
+{
+  rotateDownHelper(&pixels, 16, 24);
+}
+
+void makeInnerClockwiseStreak( int streakSize, uint32_t background, uint32_t head)
+{
+  if (streakSize > 16) streakSize = 16;
+  fillInner(background);
+
+  fillGradient(&pixels, 0, head, streakSize, background);
+}
+ 
+void makeInnerCounterClockwiseStreak( int streakSize, uint32_t background, uint32_t head)
+{
+  if (streakSize > 16) streakSize = 16;
+  fillInner(background);
+
+  fillGradient(&pixels, 0, background, streakSize, head);
+}
+
+void makeOuterClockwiseStreak( int streakSize, uint32_t background, uint32_t head)
+{
+  if (streakSize > 24) streakSize = 24;
+  fillOuter(background);
+
+  fillGradient(&pixels, 16, background, 16+streakSize, head);
+}
+ 
+void makeOuterCounterClockwiseStreak( int streakSize, uint32_t background, uint32_t head)
+{
+  if (streakSize > 24) streakSize = 24;
+  fillOuter(background);
+
+  fillGradient(&pixels, 16, head, 16+streakSize, background);
+}
+
+/*================================================================================
+ * END LIBRARY FUNCITONS
+ *===============================================================================*/
 
 void setup()
 {
     int i;
     uint32_t led_color=0xFF;
+
+    //Serial.begin(9600);
     
     pixels.begin();
 
     for (i=0; i<NUMPIXELS; i++)
     {
       pixels.setPixelColor(i,led_color);
-      delay(500);
+      delay(50);
       pixels.show();
     }
+    delay(100);
 
+    makeInnerCounterClockwiseStreak(5,COLOR_GREEN,COLOR_RED);
+    makeOuterCounterClockwiseStreak(10,COLOR_BLUE,COLOR_RED);
+    pixels.show();
     delay(1000);
-    pixels.setPixelColor(0,0xFF0000);
-    pixels.setPixelColor(16,0x00FF00);
 }
 
 void loop()
 {
   int loop_delay_ms=100;
 
-  rotateUpHelper(&pixels, 0, 16);
-  rotateDownHelper(&pixels, 16, 24);
+  rotateInnerCounterClockwise();
+  rotateOuterCounterClockwise();
   pixels.show();
   delay(loop_delay_ms);
 }
